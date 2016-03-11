@@ -1,0 +1,296 @@
+#include<iostream>
+#include<fstream>
+#include<string>
+#include<cstdlib>
+using namespace std;
+
+class Command
+{
+	string input;
+	public:	
+	Command();
+	Command(string userInput);
+	string getInput();
+	void setInput(string newCommand);
+};
+
+Command::Command()
+{
+}
+
+Command::Command(string inputIn):input(inputIn)
+{
+}
+
+string Command::getInput()
+{
+	return input;	
+}
+
+void Command::setInput(string newCommand)
+{
+	input = newCommand;
+}
+
+enum commandType {RUN, HELP, SET, PRINT, SAVE, EXIT};
+
+class CommandLine
+{
+	Command command;
+	commandType type;
+	public:
+	CommandLine();
+	CommandLine(Command commandIn);
+	Command getCommand();
+	void setCommand(Command newCommand);
+	commandType getType();
+	void setType(string newType);
+};
+
+CommandLine::CommandLine()
+{
+}
+
+CommandLine::CommandLine(Command commandIn):command(commandIn)
+{
+	setType(command.getInput());
+}
+
+Command CommandLine::getCommand()
+{
+	return command;
+}
+
+void CommandLine::setCommand(Command newCommand)
+{
+	command = newCommand;
+}
+
+commandType CommandLine::getType()
+{
+	return type;
+}
+
+void CommandLine::setType(string newCommand)
+{
+	if(newCommand == "run") type = RUN;
+	else if(newCommand == "set") type =  SET;
+	else if(newCommand == "print") type = PRINT;
+	else if(newCommand == "save") type = SAVE;
+	else if(newCommand == "exit") type = EXIT;
+	else { type = HELP; }
+}
+
+class DiskStat
+{
+	unsigned long blkRead;
+	unsigned long blkReadS;
+	unsigned long blkWrtn;
+	unsigned long blkWrtnS;
+	unsigned long kbReadS;
+	unsigned long kbWrtnS;
+	public:
+	void getDiskInfo();
+	unsigned long getRequestedParameters(bool requested[]);
+	unsigned long getBlockData(string diskData, unsigned int& originalPosition, unsigned int& endPosition);
+};
+
+void DiskStat::getDiskInfo()
+{
+	ifstream infile;
+	infile.open("/proc/diskstats");
+	string allStats;
+	while(!infile.eof())
+	{
+		allStats += infile.get();
+	}
+	string const DISK_NAME = "sda";
+	unsigned int diskPosition = allStats.find(DISK_NAME);
+	unsigned int endDiskPos = allStats.find("\n", diskPosition);
+	unsigned int diskDataLength = endDiskPos - diskPosition;
+	string diskData = allStats.substr(diskPosition, diskDataLength); 
+	cout << diskData << endl;
+	
+	unsigned int startPosition = 0;
+	unsigned int endPosition = 0;	
+	unsigned int readLength = 0;
+
+//generalize this later
+
+	//blkRead - field 1
+	blkRead = getBlockData(diskData, startPosition, endPosition);
+	cout << blkRead << endl;
+
+	//discard - field 2
+	startPosition = endPosition;
+	getBlockData(diskData, startPosition, endPosition);
+
+	//blkReadS - field 3
+	startPosition = endPosition;
+	blkReadS = getBlockData(diskData, startPosition, endPosition);
+	cout << blkReadS << endl;
+
+	//discard - field 4
+	startPosition = endPosition;
+	getBlockData(diskData, startPosition, endPosition);
+
+	//blkWrtn - field 5
+	startPosition = endPosition;
+	blkWrtn = getBlockData(diskData, startPosition, endPosition);
+	cout << blkWrtn << endl;
+	
+	//discard - field 6
+	startPosition = endPosition;
+	getBlockData(diskData, startPosition, endPosition);
+	
+	//blkWrtn - field 7
+	startPosition = endPosition;
+	blkWrtnS = getBlockData(diskData, startPosition, endPosition);
+	cout << blkWrtnS << endl;
+	
+}
+
+unsigned long DiskStat::getBlockData(string diskData, unsigned int& startPosition, unsigned int& endPosition)
+{
+	unsigned int readLength;
+
+	startPosition = diskData.find(" ", startPosition);
+	endPosition = diskData.find(" ", startPosition + 1);
+	readLength = endPosition - startPosition;
+	string blkInfo = diskData.substr(startPosition, readLength);
+	unsigned long blkData = atoi(blkInfo.c_str());
+	return blkData;
+}
+
+/* Read info from config file */
+class ConfigInfo
+{
+	bool isBlkRead;
+	bool isBlkReadS;
+	bool isBlkWrtn;
+	bool isBlkWrtnS;
+	bool isKbReadS;
+	bool isKbWrtnS;
+	unsigned int count;
+	unsigned int interval;
+	static unsigned int const NUM_ATTRIBUTES = 6;
+	public:
+	ConfigInfo();
+	ConfigInfo(bool setEach[], unsigned int newCount, unsigned int newInterval);
+	void setIsBlkRead(bool isSet);
+	void setIsBlkReadS(bool isSet);
+	void setIsBlkWrtn(bool isSet);
+	void setIsBlkWrtnS(bool isSet);
+	void setIsKbReadS(bool isSet);
+	void setIsKbWrtnS(bool isSet);
+	void setCount(unsigned int newCount);
+	void setInterval(unsigned int newInterval);
+};
+
+ConfigInfo::ConfigInfo()
+{
+}
+
+ConfigInfo::ConfigInfo(bool setEach[], unsigned int newCount, unsigned int newInterval):count(newCount), interval(newInterval)
+{
+	//This is NOT maintainable. Fix if there is time.
+	isBlkRead = setEach[0];
+	isBlkReadS = setEach[1];
+	isBlkWrtn = setEach[2];
+	isBlkWrtnS = setEach[3];
+	isKbReadS = setEach[4];
+	isKbWrtnS = setEach[5];
+}
+
+
+class Tool
+{
+	CommandLine command;
+	DiskStat status;
+	ConfigInfo configuration;
+	public:
+	Tool();
+	Tool(CommandLine newCommand, DiskStat newStatus, ConfigInfo newConfig);
+	void init();
+	void run();
+	void help();
+	void set();
+	void print();
+	void save();
+	void exit();
+};
+
+Tool::Tool()
+{
+}
+
+Tool::Tool(CommandLine newCommand, DiskStat newStatus, ConfigInfo newConfig):command(newCommand), status(newStatus), configuration(newConfig)
+{
+}
+
+void Tool::init()
+{
+	string input;
+	cout << "Enter something you twit. Or type 'help' for help. ";
+	getline(cin, input);
+	Command userCommand(input);
+	CommandLine commandline(userCommand);
+	DiskStat status;
+	//status.getDiskInfo();
+	ConfigInfo configuration;
+	//configuration.	
+}
+
+class Record
+{
+	string attribute;
+	unsigned long value;
+	public:
+	Record();
+	Record(string newAttribute, unsigned long newValue);
+	string getAttribute();
+	void setAttribute();
+	unsigned long getValue();
+	void setValue();
+};
+
+Record::Record()
+{
+}
+
+Record::Record(string newAttribute, unsigned long newValue):attribute(newAttribute), value(newValue)
+{
+}
+
+class Report
+{
+	Record recordSet[];
+	int numRecords;
+	public:
+	Report();
+	Report(Record newRecordSet[], int numRecordsIn);
+	void storeDiskStats();
+	void getAllRecords();
+	void addRecord();
+};
+
+Report::Report()
+{
+}
+
+Report::Report(Record newRecordSet[], int numRecordsIn):numRecords(numRecordsIn)
+{
+	numRecords = numRecordsIn;
+	for(int i = 0; i < numRecords; i++)
+	{
+		recordSet[i] = newRecordSet[i];
+	}
+}
+
+int main()
+{
+	Tool auDiskTool;
+	
+	auDiskTool.init();
+	return 0;
+}

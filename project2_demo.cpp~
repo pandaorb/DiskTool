@@ -1,0 +1,23 @@
+/* 
+* Allison Macdonald
+* amm0086
+* project2
+*
+* File help - http://www.cplusplus.com/doc/tutorial/files/ 
+* Debugging help - stackoverflow.com
+*/
+
+#include<iostream>
+#include "tool.h"
+using namespace std;
+using namespace myTool;
+
+int main()
+{
+	Tool auDiskTool;
+	
+	auDiskTool.init();
+	auDiskTool.menu();
+	auDiskTool.exit();
+	return 0;
+}
